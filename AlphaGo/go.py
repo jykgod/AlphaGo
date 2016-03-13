@@ -1,3 +1,4 @@
+# 显然这个文件只是简单定义了围棋的游戏状态的数据结构
 import numpy as np
 
 WHITE = -1
@@ -10,13 +11,20 @@ class GameState(object):
 	"""
 
 	def __init__(self, size=19):
+		# 棋盘
 		self.board = np.zeros((size, size))
 		self.board.fill(EMPTY)
+		# 棋盘大小
 		self.size = size
+		# 已经完成了多少回合
 		self.turns_played = 0
+		# 当前轮到哪一方的玩家落子
 		self.current_player = BLACK
+		# 是否结束
 		self.ko = None
+		# 历史记录
 		self.history = []
+		# 黑白双方的占地
 		self.num_black_prisoners = 0
 		self.num_white_prisoners = 0
 		# `self.liberty_sets` is a 2D array with the same indexes as `board`
@@ -24,19 +32,22 @@ class GameState(object):
 		# connected block. By caching liberties in this way, we can directly
 		# optimize update functions (e.g. do_move) and in doing so indirectly
 		# speed up any function that queries liberties
+		# 棋盘的活口集合
 		self.liberty_sets = [[set() for _ in range(size)] for _ in range(size)]
 		for x in range(size):
 			for y in range(size):
 				self.liberty_sets[x][y] = set(self._neighbors((x,y)))
 		# separately cache the 2D numpy array of the _size_ of liberty sets
 		# at each board position
+		# 活口的数量？
 		self.liberty_counts = np.zeros((size,size))
 		self.liberty_counts.fill(-1)
 		# initialize liberty_sets of empty board: the set of neighbors of each position
 		# similarly to `liberty_sets`, `group_sets[x][y]` points to a set of tuples
 		# containing all (x',y') pairs in the group connected to (x,y)
+		# group的集合
 		self.group_sets = [[set() for _ in range(size)] for _ in range(size)]
-
+	# 得到某个位置的"Group","Group"指连续的相同颜色的一组子
 	def get_group(self, position):
 		"""Get the group of connected same-color stones to the given position
 
@@ -52,7 +63,7 @@ class GameState(object):
 		(x, y) = position
 		# given that this is already cached, it is a fast lookup
 		return self.group_sets[x][y]
-
+	# 得到一个位置周围的“group”
 	def get_groups_around(self, position):
 		"""returns a list of the unique groups adjacent to position
 
@@ -74,20 +85,20 @@ class GameState(object):
 				if not any(group_member in g for g in groups):
 					groups.append(group)
 		return groups
-
+	# 判断位置是否在棋盘上
 	def _on_board(self, position):
 		"""simply return True iff position is within the bounds of [0, self.size)
 		"""
 		(x,y) = position
 		return x >= 0 and y >= 0 and x < self.size and y < self.size
-
+	# 计算出在棋盘上的邻居节点
 	def _neighbors(self, position):
 		"""A private helper function that simply returns a list of positions neighboring
 		the given (x,y) position. Basically it handles edges and corners.
 		"""
 		(x,y) = position
 		return filter(self._on_board, [(x-1, y), (x+1, y), (x, y-1), (x, y+1)])
-	
+	# 更新邻居节点
 	def _update_neighbors(self, position):
 		"""A private helper function to update self.group_sets and self.liberty_sets 
 		given that a stone was just played at `position`
@@ -121,7 +132,7 @@ class GameState(object):
 			self.group_sets[gx][gy] = merged_group
 			self.liberty_sets[gx][gy] = merged_libs
 			self.liberty_counts[gx][gy] = count_merged_libs
-
+	# 从棋盘上删除一个group
 	def _remove_group(self, group):
 		"""A private helper function to take a group off the board (due to capture),
 		updating group sets and liberties along the way
@@ -142,7 +153,7 @@ class GameState(object):
 					# add (x,y) to the liberties of its nonempty neighbors
 					self.liberty_sets[nx][ny].add((x,y))
 					self.liberty_counts[nx][ny] += 1
-
+	# 拷贝一个游戏状态
 	def copy(self):
 		"""get a copy of this Game state
 		"""
@@ -164,7 +175,7 @@ class GameState(object):
 				other.liberty_sets[x][y] = set(self.liberty_sets[x][y])
 		other.liberty_counts = self.liberty_counts.copy()
 		return other
-
+	# 判断某个动作是不是自杀动作。
 	def is_suicide(self, action):
 		"""return true if having current_player play at <action> would be suicide
 		"""
